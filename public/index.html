@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Learning Model Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .video-container {
+            position: relative;
+        }
+        #video {
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+        #canvas {
+            display: none;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+            background: #f9f9f9;
+        }
+        button {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:disabled {
+            background: #cccccc;
+        }
+        .results {
+            padding: 10px;
+            border: 1px solid #eee;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deep Learning Model Test</h1>
+    
+    <div class="container">
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start Camera</button>
+            <button id="captureBtn" disabled>Capture Frame</button>
+            <button id="connectBtn">Connect WebSocket</button>
+            <button id="analyzeBtn" disabled>Analyze Frame</button>
+        </div>
+        
+        <div>
+            <h3>Results:</h3>
+            <pre class="results" id="results">No results yet</pre>
+        </div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startBtn = document.getElementById('startBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const connectBtn = document.getElementById('connectBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultsDiv = document.getElementById('results');
+        
+        let ws = null;
+        
+        // Start camera
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                video.srcObject = stream;
+                startBtn.disabled = true;
+                captureBtn.disabled = false;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                resultsDiv.textContent = `Error accessing camera: ${err.message}`;
+            }
+        });
+        
+        // Capture frame from video
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            resultsDiv.textContent = 'Frame captured! Click "Analyze Frame" to process.';
+            analyzeBtn.disabled = false;
+        });
+        
+        // Connect to WebSocket server
+        connectBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+            
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                resultsDiv.textContent = 'WebSocket connected!';
+                connectBtn.textContent = 'Reconnect';
+                analyzeBtn.disabled = !canvas.width;
+            };
+            
+            ws.onclose = () => {
+                resultsDiv.textContent += '\nWebSocket disconnected.';
+                connectBtn.textContent = 'Connect WebSocket';
+            };
+            
+            ws.onerror = (error) => {
+                resultsDiv.textContent = `WebSocket error: ${error.message}`;
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const response = JSON.parse(event.data);
+                    resultsDiv.textContent = JSON.stringify(response, null, 2);
+                } catch (err) {
+                    resultsDiv.textContent = `Error parsing response: ${err.message}\n${event.data}`;
+                }
+            };
+        });
+        
+        // Analyze captured frame
+        analyzeBtn.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                resultsDiv.textContent = 'WebSocket not connected!';
+                return;
+            }
+            
+            // Get the image data as base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Send to server
+            resultsDiv.textContent = 'Sending frame for analysis...';
+            ws.send(JSON.stringify({ frame: imageData }));
+        });
+    </script>
+</body>
+</html>
