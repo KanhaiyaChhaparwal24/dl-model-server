@@ -47,7 +47,16 @@ const frameController = {
       }
       
       const result = await frameController.processFrame(frame);
-      return res.json({ status: 'success', result });
+      
+      // Enhance the result with a more user-friendly message
+      let detectedObject = result.prediction || "unknown object";
+      let confidence = result.confidence ? (result.confidence * 100).toFixed(2) + "%" : "unknown";
+      
+      return res.json({ 
+        status: 'success', 
+        message: `Detected: ${detectedObject} (Confidence: ${confidence})`,
+        data: result 
+      });
     } catch (error) {
       console.error('Error handling frame upload:', error);
       return res.status(500).json({ status: 'error', message: error.message });

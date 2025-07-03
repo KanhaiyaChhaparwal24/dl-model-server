@@ -27,9 +27,14 @@ wss.on('connection', (ws) => {
       const frameController = require('./controllers/frameController');
       const result = await frameController.processFrame(frameData.frame);
       
+      // Enhance the result with a more user-friendly message
+      let detectedObject = result.prediction || "unknown object";
+      let confidence = result.confidence ? (result.confidence * 100).toFixed(2) + "%" : "unknown";
+      
       ws.send(JSON.stringify({ 
-        status: 'success', 
-        result: result 
+        status: 'success',
+        message: `Detected: ${detectedObject} (Confidence: ${confidence})`,
+        data: result 
       }));
     } catch (error) {
       console.error('Error processing frame:', error);

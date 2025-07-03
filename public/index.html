@@ -52,6 +52,16 @@
             min-height: 100px;
             white-space: pre-wrap;
         }
+        .result-highlight {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .result-details {
+            font-size: 14px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -142,7 +152,23 @@
             ws.onmessage = (event) => {
                 try {
                     const response = JSON.parse(event.data);
-                    resultsDiv.textContent = JSON.stringify(response, null, 2);
+                    
+                    // Create a more user-friendly display of results
+                    resultsDiv.innerHTML = '';
+                    
+                    // Add highlight message if available
+                    if (response.message) {
+                        const highlightDiv = document.createElement('div');
+                        highlightDiv.className = 'result-highlight';
+                        highlightDiv.textContent = response.message;
+                        resultsDiv.appendChild(highlightDiv);
+                    }
+                    
+                    // Add detailed results
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'result-details';
+                    detailsDiv.textContent = JSON.stringify(response.data || response.result, null, 2);
+                    resultsDiv.appendChild(detailsDiv);
                 } catch (err) {
                     resultsDiv.textContent = `Error parsing response: ${err.message}\n${event.data}`;
                 }

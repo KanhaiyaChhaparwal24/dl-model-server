@@ -6,7 +6,8 @@ A Node.js server application for deploying deep learning models with WebSocket s
 
 - WebSocket server for real-time camera frame processing
 - REST API endpoints for frame upload and processing
-- Python integration for deep learning model inference
+- Python integration for deep learning model inference with PyTorch (ResNet18) or TensorFlow (MobileNetV2)
+- Object detection with human-readable labels from ImageNet
 - Simple web interface for testing
 
 ## Project Structure
@@ -14,15 +15,15 @@ A Node.js server application for deploying deep learning models with WebSocket s
 ```
 dl-model-server/
 ├── controllers/
-│   └── frameController.js   # Controller for frame handling
+│   └── frameController.js   # Controller for frame handling and Python interaction
 ├── model/
-│   └── infer.py             # Python script for model inference
+│   └── infer.py             # Python script for model inference (PyTorch/TensorFlow)
 ├── public/
-│   └── index.html           # Web testing interface
+│   └── index.html           # Web testing interface with camera support
 ├── routes/
-│   └── frameRoutes.js       # API routes
+│   └── frameRoutes.js       # API routes for frame processing
 ├── temp/                    # Temporary storage for frames (created at runtime)
-├── server.js                # Main server file
+├── server.js                # Main server file with WebSocket implementation
 ├── package.json
 └── README.md
 ```
@@ -31,8 +32,9 @@ dl-model-server/
 
 - Node.js 14.x or higher
 - Python 3.6 or higher
-- For PyTorch or TensorFlow (optional but recommended):
+- For deep learning capabilities (optional but recommended):
   - PyTorch 1.8+ or TensorFlow 2.4+
+  - The application will use PyTorch's ResNet18 if available, then fall back to TensorFlow's MobileNetV2, and finally to a simple brightness-based classifier if neither is available
 
 ## Installation
 
@@ -95,10 +97,13 @@ The server will respond with inference results:
 ```json
 {
   "status": "success",
-  "result": {
-    "prediction": "object_class",
-    "confidence": 0.95,
-    ...
+  "message": "Detected: laptop (Confidence: 87.65%)",
+  "data": {
+    "framework": "pytorch",
+    "prediction_idx": 620,
+    "prediction": "laptop",
+    "confidence": 0.8765,
+    "timestamp": 1751520945.752
   }
 }
 ```
@@ -110,3 +115,33 @@ To use your own deep learning model:
 1. Modify the `infer.py` script in the `model` folder
 2. Replace the existing model loading and inference code with your own model
 3. Ensure your model returns results in JSON format
+
+## Troubleshooting
+
+### Object Detection Issues
+
+If the model returns "unknown object" with unknown confidence:
+
+1. Check that PyTorch or TensorFlow is properly installed
+2. Ensure the data type of tensor inputs matches the model's expectations:
+   - For PyTorch, use `.float()` on input tensors
+   - For TensorFlow, ensure proper preprocessing with `preprocess_input()`
+3. Check for any error messages in the server console
+
+### Port Already in Use
+
+If you encounter an `EADDRINUSE` error when starting the server:
+
+```
+Error: listen EADDRINUSE: address already in use :::3000
+```
+
+You can free the port by terminating the process using it:
+
+```powershell
+# Windows PowerShell:
+Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue).OwningProcess -Force
+
+# Linux/macOS:
+# kill $(lsof -t -i:3000)
+```
